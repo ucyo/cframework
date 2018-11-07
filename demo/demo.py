@@ -10,7 +10,7 @@ Usage:
   demo.py subsetting FILE N
   demo.py shannon FILE
   demo.py ensemble FILE
-  demo.py parallel [FILE...]
+  demo.py parallel [FILE...] [--climate]
   demo.py compress WFNR FILE [--subset=<size>]
   demo.py -h | --help
   demo.py --version
@@ -19,6 +19,7 @@ Options:
   -h --help           Show this screen
   -v --version        Show version
   -s --subset=<size>  Size of subset [default: None]
+  -c --climate        Run with climate models
 """
 from docopt import docopt
 import numpy as np
@@ -49,6 +50,7 @@ if __name__ == '__main__':
     from cframe.modifier.predictor.lastvalue import LastValue
     from cframe.modifier.predictor.stride import Stride
     from cframe.modifier.predictor.akumuli import Akumuli
+    from cframe.modifier.predictor.strideconfidence import StrideConfidence
     from cframe.modifier.predictor.twostride import TwoStride
 
     # Subtractor
@@ -66,7 +68,8 @@ if __name__ == '__main__':
     from cframe.objects.arrays.floatarray import FloatArray
 
     arguments = docopt(__doc__, version='0.10.1')
-    data = read_inputfile(arguments['FILE'][0])
+    if not arguments['--climate']:
+        data = read_inputfile(arguments['FILE'][0])
 
     workflows = {
         1 : Workflow(Ordered, Linear, LastValue, XOR, F1),
@@ -113,16 +116,39 @@ if __name__ == '__main__':
     elif arguments['parallel']:
         from cframe.toolbox.parallel import ParallelProcessWorkflow
         from cframe.toolbox.feeder import SeqFeeder
+        if arguments['--climate']:
 
-        start = time()
-        par = ParallelProcessWorkflow()
-        compressions = par.compress(workflows.values(), data, 0, SeqFeeder)
-        import operator
-        res = {x[0]:x[1].nbytes/data.nbytes for x in compressions if not isinstance(x[1], str)}
-        sorted_x = sorted(res.items(), key=operator.itemgetter(1))
-        print("#"*25)
-        for i,v in sorted_x:
-            print('{:50s} \t {:.5f}'.format(i,v))
+            # climate compression
+            for var in ['ua', 'tas']:
+                print("Compression of {}".format(var))
+                a = FloatArray.from_data('pre', var)
+                if var=='ua':
+                    a = FloatArray.from_numpy(a.array[0,12,:,:])
+                workflows = [Workflow(m, Linear, p, sb, RawEncoder)
+                             for m in [Ordered, Raw]
+                             for p in [LastValue, Akumuli, TwoStride, StrideConfidence]
+                             for sb in [XOR, FPD]
+                            ]
+                par = ParallelProcessWorkflow()
+                compressions = par.compress(workflows, a, 0, SeqFeeder)
+                import operator
+                res = {x[0]:x[1].nbytes/a.nbytes for x in compressions if not isinstance(x[1], str)}
+                sorted_x = sorted(res.items(), key=operator.itemgetter(1))
+                print("#"*25)
+                for i,v in sorted_x:
+                    print('{:50s} \t {:.5f}'.format(i,v))
+        else:
+            from cframe.toolbox.parallel import ParallelProcessWorkflow
+            from cframe.toolbox.feeder import SeqFeeder
+
+            par = ParallelProcessWorkflow()
+            compressions = par.compress(workflows.values(), data, 0, SeqFeeder)
+            import operator
+            res = {x[0]:x[1].nbytes/data.nbytes for x in compressions if not isinstance(x[1], str)}
+            sorted_x = sorted(res.items(), key=operator.itemgetter(1))
+            print("#"*25)
+            for i,v in sorted_x:
+                print('{:50s} \t {:.5f}'.format(i,v))
     elif arguments['ensemble']:
         from cframe.modifier.predictor.ensemble import LastBest, MostRight
 
