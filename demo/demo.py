@@ -10,7 +10,7 @@ Usage:
   demo.py subsetting FILE N
   demo.py shannon FILE
   demo.py ensemble FILE
-  demo.py parallel [FILE...] [--climate]
+  demo.py parallel [FILE...] [--climate] [--subset=<size>]
   demo.py compress WFNR FILE [--subset=<size>]
   demo.py -h | --help
   demo.py --version
@@ -124,6 +124,10 @@ if __name__ == '__main__':
                 a = FloatArray.from_data('pre', var)
                 if var=='ua':
                     a = FloatArray.from_numpy(a.array[0,12,:,:])
+                if arguments['--subset'] != 'None':
+                    value = int(arguments['--subset'])
+                    from cframe.toolbox.subsetting import Subset
+                    a = Subset.subset(a, value)
                 workflows = [Workflow(m, Linear, p, sb, RawEncoder)
                              for m in [Ordered, Raw]
                              for p in [LastValue, Akumuli, TwoStride, StrideConfidence]
