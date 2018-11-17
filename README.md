@@ -1,4 +1,4 @@
-Code from publication [@ACM SIGSPATIAL 2018](https://sigspatial2018.sigspatial.org/):
+Code from publication [@ACM SIGSPATIAL 2018](https://doi.org/10.1145/3274895.3274897):
 Modular Software Framework for Compression of Structured Environmental Data.
 
 # cframework
